@@ -9,10 +9,11 @@ def parse_date(date_str):
         return None
 
 def main():
-    # Database connection and queries remain the same
+    # Connect to the database
     conn = sqlite3.connect('crimes.db')
     cursor = conn.cursor()
 
+    # Get distinct crime types
     cursor.execute("""
         SELECT DISTINCT `Primary Type`
         FROM filtered_crimes
@@ -20,15 +21,16 @@ def main():
     """)
     crime_types = [row[0] for row in cursor.fetchall()]
 
+    # Query to get the required fields including the Arrest column
     cursor.execute("""
-        SELECT `Primary Type`, Latitude, Longitude, Date, Block, Description
+        SELECT `Primary Type`, Latitude, Longitude, Date, Block, Description, Arrest
         FROM filtered_crimes
         WHERE Latitude IS NOT NULL 
         AND Longitude IS NOT NULL
     """)
     crimes = cursor.fetchall()
     
-    # Data processing remains the same
+    # Process data and add arrest status
     crime_data = {}
     for crime_type in crime_types:
         crime_data[crime_type] = [
@@ -38,13 +40,15 @@ def main():
                 "date": date,
                 "year": parse_date(date),
                 "block": block,
-                "description": desc
+                "description": desc,
+                "arrest": "Yes" if arrest == 1 else "No"
             }
-            for (ptype, lat, lng, date, block, desc) in crimes if ptype == crime_type
+            for (ptype, lat, lng, date, block, desc, arrest) in crimes if ptype == crime_type
         ]
 
     conn.close()
 
+    # HTML and JavaScript for the map
     html = """
 <!DOCTYPE html>
 <html>
@@ -208,6 +212,7 @@ def main():
                     <div class="popup-detail"><strong>Date:</strong> ${crime.date}</div>
                     <div class="popup-detail"><strong>Location:</strong> ${crime.block}</div>
                     <div class="popup-detail"><strong>Details:</strong> ${crime.description || 'Not provided'}</div>
+                    <div class="popup-detail"><strong>Arrest Made:</strong> ${crime.arrest}</div>
                 </div>
             `;
         }
@@ -307,6 +312,7 @@ def main():
 </html>
 """
 
+    # Save the generated HTML to a file
     with open('crime_map.html', 'w') as f:
         f.write(html)
 
